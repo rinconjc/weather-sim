@@ -1,5 +1,6 @@
 package weathersim
 
+import java.time.{Duration, LocalDateTime}
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
@@ -17,6 +18,7 @@ class WeatherSensorActor(location: Location, estimator: WeatherEstimator, eventB
   import context.dispatcher
 
   val NEARBY_THRESHOLD_KMS = 100
+  val startTime = LocalDateTime.now()
   var neighbors: List[ActorRef] = List()
   var lastEvent: Option[WeatherEvent] = None
 
@@ -29,7 +31,7 @@ class WeatherSensorActor(location: Location, estimator: WeatherEstimator, eventB
       self ! ReportWeather
 
     case ReportWeather =>
-      val nextEvent = estimator.generateNewEvent(location, lastEvent)
+      val nextEvent = estimator.generateNewEvent(location, currentTime, lastEvent)
       lastEvent = Some(nextEvent)
       eventBus.publish(nextEvent)
       neighbors.foreach(_ ! NearbyEvent(nextEvent))
@@ -37,7 +39,7 @@ class WeatherSensorActor(location: Location, estimator: WeatherEstimator, eventB
         , TimeUnit.SECONDS), self, ReportWeather)
 
     case NearbyEvent(event) =>
-      estimator.fromNearbyEvent(event, lastEvent)
+      estimator.fromNearbyEvent(event, currentTime , lastEvent)
         .foreach(nextEvent =>{
           lastEvent = Some(nextEvent)
           log.info("reacted to nearby event in {}: {}", event, nextEvent)
@@ -52,6 +54,12 @@ class WeatherSensorActor(location: Location, estimator: WeatherEstimator, eventB
       }
 
     case Stop => log.info("stopping sensor for {}", location)
+  }
+
+  def currentTime = {
+    val time = LocalDateTime.now()
+    val elapsed = Duration.between(startTime, time)
+    time.plusSeconds(elapsed.toSeconds * Config.timeScale)
   }
 
 }

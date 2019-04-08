@@ -15,4 +15,10 @@ object Config {
     */
   def locationsFile = config.getString("locations-file")
 
+  /**
+    *
+    * @return
+    */
+  lazy val timeScale = config.getInt("time-scale")
+
 }

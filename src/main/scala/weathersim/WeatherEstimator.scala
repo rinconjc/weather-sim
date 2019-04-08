@@ -20,7 +20,7 @@ trait WeatherEstimator {
     * @param location
     * @return
     */
-  def generateNewEvent(location: Location, lastEvent: Option[WeatherEvent]): WeatherEvent
+  def generateNewEvent(location: Location, time: LocalDateTime, lastEvent: Option[WeatherEvent]): WeatherEvent
 
   /**
     * Generates an event as a reaction to an event nearby
@@ -29,13 +29,14 @@ trait WeatherEstimator {
     * @param lastEvent
     * @return
     */
-  def fromNearbyEvent(event: WeatherEvent, lastEvent: Option[WeatherEvent]): Option[WeatherEvent] =
+  def fromNearbyEvent(event: WeatherEvent, time: LocalDateTime, lastEvent: Option[WeatherEvent]): Option[WeatherEvent] =
     lastEvent.flatMap(last => {
       if (last.condition == event.condition) //same condition already
         None
       else if (Random.nextFloat() > 0.5) //50% chance that it should in the same condition
         Some(last.copy(condition = event.condition,
-          temperature = (event.temperature + last.temperature) / 2))
+          temperature = (event.temperature + last.temperature) / 2,
+          time = time))
       else None
     })
 
@@ -133,8 +134,7 @@ object SuperSimpleWeatherEstimator extends WeatherEstimator with SimpleTemperatu
     * @param location
     * @return
     */
-  override def generateNewEvent(location: Location, lastEvent: Option[WeatherEvent]): WeatherEvent = {
-    val time = location.currentTime()
+  override def generateNewEvent(location: Location, time: LocalDateTime, lastEvent: Option[WeatherEvent]): WeatherEvent = {
     val temp = estimateTemperature(location.position, time, lastEvent)
     val pressure = estimatePressure(location.position, time, temp)
     val humidity = estimateHumidity(location.position, time, pressure, temp)
@@ -154,8 +154,7 @@ object ImprovedWeatherEstimator extends WeatherEstimator with SimpleTemperatureE
     lastEvent.map(prevEvent => (prevEvent.temperature + newTemp) / 2).getOrElse(newTemp)
   }
 
-  override def generateNewEvent(location: Location, lastEvent: Option[WeatherEvent]): WeatherEvent = {
-    val time = location.currentTime()
+  override def generateNewEvent(location: Location, time: LocalDateTime, lastEvent: Option[WeatherEvent]): WeatherEvent = {
     val temp = estimateTemperature(location.position, time, lastEvent)
     val pressure = estimatePressure(location.position, time, temp)
     val humidity = estimateHumidity(location.position, time, pressure, temp)
