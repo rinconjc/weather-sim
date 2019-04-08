@@ -29,16 +29,25 @@ class WeatherSensorActor(location: Location, estimator: WeatherEstimator, eventB
       self ! ReportWeather
 
     case ReportWeather =>
-      val nextEvent = estimator.generateEvent(location, lastEvent)
+      val nextEvent = estimator.generateNewEvent(location, lastEvent)
       lastEvent = Some(nextEvent)
       eventBus.publish(nextEvent)
-      context.system.scheduler.scheduleOnce(FiniteDuration(Random.nextInt(10) + 1
-        , TimeUnit.MILLISECONDS), self, ReportWeather)
+      neighbors.foreach(_ ! NearbyEvent(nextEvent))
+      context.system.scheduler.scheduleOnce(FiniteDuration(Random.nextInt(5) + 1
+        , TimeUnit.SECONDS), self, ReportWeather)
+
+    case NearbyEvent(event) =>
+      estimator.fromNearbyEvent(event, lastEvent)
+        .foreach(nextEvent =>{
+          lastEvent = Some(nextEvent)
+          log.info("reacted to nearby event in {}: {}", event, nextEvent)
+          eventBus.publish(nextEvent)
+        })
 
     case Started(other, otherLocation) =>
       if (other != self && location.distance(otherLocation) < NEARBY_THRESHOLD_KMS) {
         neighbors = other :: neighbors
-        log.info("Neighbor sensor detected: {} and {}", location, otherLocation)
+        log.info("neighbor sensor detected: {} and {}", location, otherLocation)
         //subscribe to events from neighbor sensor
       }
 
@@ -55,4 +64,6 @@ case object Stop
 case class Started(sensor: ActorRef, location: Location)
 
 case object ReportWeather
+
+case class NearbyEvent(event: WeatherEvent)
 
