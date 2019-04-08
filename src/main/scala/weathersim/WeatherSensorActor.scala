@@ -59,7 +59,7 @@ class WeatherSensorActor(location: Location, estimator: WeatherEstimator, eventB
   def currentTime = {
     val time = LocalDateTime.now()
     val elapsed = Duration.between(startTime, time)
-    time.plusSeconds(elapsed.toSeconds * Config.timeScale)
+    time.plusSeconds(elapsed.toSeconds * Config.timeScale + location.tzOffset)
   }
 
 }
